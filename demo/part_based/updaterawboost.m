@@ -2,16 +2,17 @@ function  [strongclassifier, selectors, alpha] = updaterawboost(strongclassifier
     global parameter;
     numofpatches = size(patch, 1);
     numofweakclassifier = parameter.numweakclassifiers;
-    weight = zeros(numofweakclassifier, numofpatches, parameter.numselectors);
+    %weight = zeros(numofweakclassifier, numofpatches, parameter.numselectors);
     selectors = zeros(parameter.numselectors, 1);
     alpha = zeros(parameter.numselectors, 1);
+    weight = haarfeatureeval(strongclassifier, sumimagedata, patch);
     for i = 1:parameter.numselectors
         % for each weakclassifiers update 
         % possion sampling
         % calculate the haarfeature value for each weakclassifier
         for j = 1: numofpatches
-            strongclassifier(i).weightvalue = haarfeatureeval(strongclassifier(i), sumimagedata, patch(j,:));
-            weight(:, j,i) = strongclassifier(i).weightvalue;
+           % strongclassifier(i).weightvalue = haarfeatureeval(strongclassifier(i), sumimagedata, patch(j,:));
+           % weight(:, j,i) = strongclassifier(i).weightvalue;
             if label(j) == 1
                 % pos update
                 strongclassifier(i) = posgaussiandistributionupdate(strongclassifier(i), weight(:, j, i), parameter.minfactor);

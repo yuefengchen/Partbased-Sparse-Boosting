@@ -33,9 +33,12 @@ parameter.saveresult = false;
 parameter.boost = true;
 parameter.spboost = true;
 
+%% partbased
+
+
 %% random part 
 % 2012-04-06
-
+parameter.partbased = true;
 parameter.randompart = false;
 parameter.partnumber = 5;
 parameter.sizefixed = true;
@@ -62,6 +65,7 @@ objectlocation = parameter.patch;
 I = imread(num2str(parameter.imgstart, parameter.imdirformat));
 imshow(I);
 sumimagedata = intimage(I);
+
 %% initilize the posgaussian and neggaussian
 % strongclassifier(1) total   block
 % strongclassifier(2) top     block
@@ -71,6 +75,8 @@ sumimagedata = intimage(I);
 
 
 sstrongclassifier = partbased_init_strongclassifier(I, parameter.patch);
+
+
 sp_sstrongclassifier = sstrongclassifier;
 sp_parameter = parameter;
 
