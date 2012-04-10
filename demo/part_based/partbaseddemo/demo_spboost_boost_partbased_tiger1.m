@@ -1,0 +1,159 @@
+% program is programming by chenyuefeng on 2012-03-06
+% demo main function
+% part based model
+% top , bottom, left , right
+%
+error_boost = zeros(10, 1);
+error_spboost = zeros(10, 1);
+clear; 
+clear global parameter;
+for runid=1:10   
+    
+    close all;
+   
+
+    global parameter;
+
+    load tiger1_gt.mat;
+    groundth_gt = tiger1_gt;
+    parameter.numselectors = 20;
+    parameter.overlap = 0.99;
+    parameter.searchfactor = 2;
+    parameter.minfactor = 0.001;
+    parameter.patch = groundth_gt(1,:);
+    parameter.iterationinit = 0;
+    parameter.numweakclassifiers = parameter.numselectors * 10;
+    parameter.minarea = 9;
+    parameter.imagewidth = 320;
+    parameter.imageheight = 240;
+    parameter.imdirformat = './/data//tiger1//imgs//img%05d.png';
+
+    parameter.imgstart = 0;
+    parameter.imgend = 353;
+
+
+    parameter.saveresult = false;
+    parameter.boost = true;
+    parameter.spboost = true;
+
+
+    %% random part 
+    % 2012-04-06
+    parameter.randompart = false;
+    parameter.partnumber = 5;
+    parameter.sizefixed =  true;
+    parameter.fixedwidth = floor(parameter.patch(3) * 2 / 3);
+    parameter.fixedheight = floor(parameter.patch(4) * 2 / 3);
+
+
+    %% edge
+    parameter.edgefeature = false;
+    parameter.edgethreshold = 0.1;
+
+    %% overlap
+    parameter.overlapconstrain = 0.5;
+
+    %% weak classifier feature size
+    parameter.haar_size = 1;
+
+    %% init_iteration
+    parameter.init_iteration = 50;
+    %%%%%%%%%%
+    objectlocation = parameter.patch;
+
+
+
+    %parameter.initializeiterations = 50;
+    % generate haar feature randomly and initilize the gaussian distribution 
+
+    I = rgb2gray(imread(num2str(parameter.imgstart, parameter.imdirformat)));
+    imshow(I);
+    sumimagedata = intimage(I);
+    % initilize the posgaussian and neggaussian
+    % strongclassifier(1) total   block
+    % strongclassifier(2) top     block
+    % strongclassifier(3) bottom  block
+    % strongclassifier(4) left    block
+    % strongclassifier(5) right   block
+
+    sstrongclassifier = partbased_init_strongclassifier(I,parameter.patch);
+    sp_sstrongclassifier = sstrongclassifier;
+    sp_parameter = parameter;
+
+    % generate the patches in the search region
+    patches = generatepatches(parameter.patch, parameter.searchfactor, parameter.overlap);
+    % first initilize the weakclassifiers
+    %% ======== sp boost
+
+
+    if parameter.spboost
+        sstrongclassifier = sp_sstrongclassifier;
+        parameter = sp_parameter;
+        parameter.imsavedir = './/data//tiger1//partbasedspboost//img%05d.png';
+        [spboostloc, spboostconf, sstrongclassifier] = ...
+             partbased_sparseboosting(sstrongclassifier, sumimagedata, patches);
+        if parameter.saveresult
+            figure;
+            saveresult(strongclassifier, spboostloc, []);
+        end
+    end
+
+    %selectors_copy = selectors;
+    %alpha_copy = alpha;
+    %[boostloc, boostconf, boost_selectors] = boosting(sumimagedata, patches);
+    %%   ======= boost
+    %
+    %% assigne parameter
+    sstrongclassifier = sp_sstrongclassifier;
+    parameter = sp_parameter;
+
+    %% generate the patches in the search region
+    patches = generatepatches(parameter.patch, parameter.searchfactor, parameter.overlap);
+    figure;
+    if  parameter.boost
+        parameter.imsavedir = './/data//tiger1//partbasedboost//img%05d.png';
+       % [boostloc, boostconf, boost_selectors, strongclassifier, selectors, alpha] = ...
+       %     boosting(strongclassifier, sumimagedata, patches);
+       [boostloc, boostconf, sstrongclassifier] = ...
+             partbased_rawboosting(sstrongclassifier, sumimagedata, patches);
+        if parameter.saveresult
+            figure;generatepatches
+            saveresult(strongclassifier, boostloc, boost_selectors);
+        end
+    end
+
+
+
+
+    figure; 
+    if parameter.boost
+        boosterror = calerror(boostloc, groundth_gt, 'b') ;
+    end
+    hold on
+    if parameter.spboost
+        spboosterror = calerror(spboostloc, groundth_gt, 'r');
+    end
+
+    figure
+    if parameter.boost
+        plot(parameter.imgstart + 1: parameter.imgend, boostconf, 'b');
+    end
+    hold on
+    if parameter.spboost
+        plot(parameter.imgstart + 1: parameter.imgend, spboostconf, 'r');
+    end
+    %error_boost = [];
+    if parameter.boost
+        mean(boosterror)*5
+        error_boost(runid) =  mean(boosterror)*5;
+    end
+    %error_spboost = [];
+    if parameter.spboost
+        mean(spboosterror)*5
+        error_spboost(runid) = mean(spboosterror)*5;
+    end
+
+end
+
+save error_boost.mat error_boost
+save error_spboost.mat error_spboost

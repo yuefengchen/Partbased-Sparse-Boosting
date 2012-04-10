@@ -1,0 +1,101 @@
+function  [strongclassifier, selectors] = updatemilboost_special(strongclassifier, sumimagedata, pospatch, negpatch)
+    global parameter;
+    numofpospatches = size(pospatch, 1);
+    numofnegpatches = size(negpatch, 1);
+    
+    numofweakclassifier = parameter.numweakclassifiers;
+    
+    posweight = zeros(numofweakclassifier, numofpospatches);
+    negweight = zeros(numofweakclassifier, numofnegpatches);
+    
+    selectors = zeros(parameter.numselectors, 1);
+    
+    pospred = zeros(numofweakclassifier, numofpospatches);
+    negpred = zeros(numofweakclassifier, numofnegpatches);
+    
+    Hpos = zeros(numofpospatches,1);
+    Hneg = zeros(numofnegpatches,1);
+    
+    Poslikely = zeros(numofweakclassifier, 1);
+    Neglikely = zeros(numofweakclassifier, 1);
+    likely = zeros(numofweakclassifier,1 );
+    % MIL NO ALPHA
+    %alpha = zeros(parameter.numselectors, 1);
+    
+    
+    
+    for j = 1: numofpospatches
+        strongclassifier.weightvalue = haarfeatureeval(strongclassifier, sumimagedata, pospatch(j,:));
+        posweight(:, j,i) = strongclassifier(i).weightvalue;
+        strongclassifier(i) = posgaussiandistributionupdate(strongclassifier(i), posweight(:, j, i), parameter.minfactor); 
+    end
+    % negsample update
+    for j = 1: numofnegpatches
+        strongclassifier(i).weightvalue = haarfeatureeval(strongclassifier(i), sumimagedata, negpatch(j,:));
+        negweight(:, j,i) = strongclassifier(i).weightvalue;
+        strongclassifier(i) = neggaussiandistributionupdate(strongclassifier(i), negweight(:, j, i), parameter.minfactor); 
+    end
+
+    for j = 1: numofpospatches
+        pospred(:,j) = classifyrealboost(strongclassifier(i), posweight(:,j,i));
+    end
+    for j = 1: numofnegpatches
+        negpred(:,j) = classifyrealboost(strongclassifier(i), negweight(:,j,i));
+    end
+    
+    
+    for i = 1:parameter.numselectors
+        % for each weakclassifiers update 
+        % calculate the haarfeature value for each weakclassifier
+        % and updat pos and neg distribution
+        
+        % possample update
+        for j = 1: numofpospatches
+            strongclassifier(i).weightvalue = haarfeatureeval(strongclassifier(i), sumimagedata, pospatch(j,:));
+            posweight(:, j,i) = strongclassifier(i).weightvalue;
+            strongclassifier(i) = posgaussiandistributionupdate(strongclassifier(i), posweight(:, j, i), parameter.minfactor); 
+        end
+        % negsample update
+        for j = 1: numofnegpatches
+            strongclassifier(i).weightvalue = haarfeatureeval(strongclassifier(i), sumimagedata, negpatch(j,:));
+            negweight(:, j,i) = strongclassifier(i).weightvalue;
+            strongclassifier(i) = neggaussiandistributionupdate(strongclassifier(i), negweight(:, j, i), parameter.minfactor); 
+        end
+        
+        for j = 1: numofpospatches
+            pospred(:,j) = classifyrealboost(strongclassifier(i), posweight(:,j,i));
+        end
+        for j = 1: numofnegpatches
+            negpred(:,j) = classifyrealboost(strongclassifier(i), negweight(:,j,i));
+        end
+       
+        %%%%%%% 
+        % get the positive bag ' s  probility
+        for j = 1:numofweakclassifier
+            lll = 1.0;
+            for k = 1:numofpospatches
+                %  p(j,k) = sigmod(Hpos(k) + pospred(j,k)) function  1 /  (1 + exp( - Hpos(k) - pospred(j,k))
+                %  1 - || 1 - p(j,k)
+                lll = lll * (1 - 1/ (1 + exp(- Hpos(k) - pospred(j,k))));
+            end
+            Poslikely(j) = log(1.0 - lll + 1e-5);
+           
+            % get the negative bag's probility
+            lll = 0;
+            for k = 1:numofnegpatches
+                lll = lll + log(1e-5 + ( 1 - 1/ ( 1 + exp( - Hneg(k) - negpred(j,k) ) ) ) );
+            end
+            Neglikely(j) = lll;
+            
+        end
+        
+        likely = Poslikely/numofpospatches + Neglikely/numofnegpatches;
+        % choose the best of the classifier
+        [maxvalue, ind] = max(likely);
+        selectors(i) = ind;
+        % update the Hpos and Hneg
+        Hpos = Hpos + pospred(ind, :)';
+        Hneg = Hneg + negpred(ind, :)';
+        
+    end
+end
